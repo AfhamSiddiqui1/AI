@@ -1,6 +1,7 @@
-"use client";
+'use client';
 
-import { useState, type FC, type FormEvent } from "react";
+import { useState, type FC, type FormEvent } from 'react';
+import Link from 'next/link';
 import {
   Brush,
   Download,
@@ -10,74 +11,74 @@ import {
   Palette,
   Rocket,
   Users,
-} from "lucide-react";
+  Save,
+  Loader2,
+  Book,
+} from 'lucide-react';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
 
-import type {
-  generatePitchFromIdea as generatePitch,
-  GeneratePitchFromIdeaOutput,
-} from "@/ai/flows/generate-pitch-from-idea";
-import { generatePitchFromIdea } from "@/ai/flows/generate-pitch-from-idea";
-import type {
-  generateHeroSectionCopy as generateHero,
-  GenerateWebsiteHeroSectionCopyOutput,
-} from "@/ai/flows/generate-website-hero-section-copy";
-import { generateHeroSectionCopy } from "@/ai/flows/generate-website-hero-section-copy";
-import type {
-  suggestColorPaletteAndLogo as suggestDesign,
-  SuggestColorPaletteAndLogoOutput,
-} from "@/ai/flows/suggest-color-palette-and-logo";
-import { suggestColorPaletteAndLogo } from "@/ai/flows/suggest-color-palette-and-logo";
-import { PitchAILogo } from "@/components/logo";
-import { Button } from "@/components/ui/button";
+import {
+  useUser,
+  useFirestore,
+  setDocumentNonBlocking,
+} from '@/firebase';
+
+import type { GeneratePitchFromIdeaOutput } from '@/ai/flows/generate-pitch-from-idea';
+import { generatePitchFromIdea } from '@/ai/flows/generate-pitch-from-idea';
+import type { GenerateHeroSectionCopyOutput } from '@/ai/flows/generate-website-hero-section-copy';
+import { generateHeroSectionCopy } from '@/ai/flows/generate-website-hero-section-copy';
+import type { SuggestColorPaletteAndLogoOutput } from '@/ai/flows/suggest-color-palette-and-logo';
+import { suggestColorPaletteAndLogo } from '@/ai/flows/suggest-color-palette-and-logo';
+
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import type {
+  PitchIdea,
+  GeneratedPitch,
+  DesignSuggestion,
+} from '@/lib/types';
+import { Header } from '@/components/header';
 
 type GenerationOutput = GeneratePitchFromIdeaOutput &
-  GenerateWebsiteHeroSectionCopyOutput &
+  GenerateHeroSectionCopyOutput &
   SuggestColorPaletteAndLogoOutput;
 
-const Header = () => (
-  <header className="flex flex-col items-center gap-4 text-center">
-    <PitchAILogo />
-    <div className="flex flex-col gap-2">
-      <h1 className="text-3xl font-headline font-bold sm:text-4xl md:text-5xl">
-        Welcome to PitchAI
-      </h1>
-      <p className="max-w-xl text-muted-foreground md:text-lg">
-        Transform your raw idea into a polished startup pitch in seconds. Let's build the future, together.
-      </p>
-    </div>
-  </header>
-);
-
 export default function Home() {
-  const [idea, setIdea] = useState("");
+  const [idea, setIdea] = useState('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<GenerationOutput | null>(null);
+  const [pitchId, setPitchId] = useState<string | null>(null);
+
   const { toast } = useToast();
+  const { user } = useUser();
+  const firestore = useFirestore();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!idea.trim()) {
       toast({
         title: "Idea can't be empty",
-        description: "Please share your brilliant startup idea with us.",
-        variant: "destructive",
+        description: 'Please share your brilliant startup idea with us.',
+        variant: 'destructive',
       });
       return;
     }
 
     setLoading(true);
     setResult(null);
+    setPitchId(null);
 
     try {
       const pitchData = await generatePitchFromIdea({ startupIdea: idea });
@@ -90,18 +91,75 @@ export default function Home() {
         }),
         suggestColorPaletteAndLogo({ startupIdea: idea }),
       ]);
-
+      
       setResult({ ...pitchData, ...heroCopyData, ...designData });
+      setPitchId(uuidv4()); // Generate a new ID for this pitch
     } catch (err: any) {
       console.error(err);
       toast({
-        title: "Generation Failed",
+        title: 'Generation Failed',
         description:
-          "An unexpected error occurred. Please check the console and try again.",
-        variant: "destructive",
+          'An unexpected error occurred. Please check the console and try again.',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!result || !user || !pitchId) {
+      toast({
+        title: 'Cannot Save Pitch',
+        description: user ? 'No pitch data to save.' : 'You must be logged in to save a pitch.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSaving(true);
+    
+    try {
+      const pitchIdeaRef = doc(firestore, 'users', user.uid, 'pitchIdeas', pitchId);
+
+      const pitchIdeaData: PitchIdea = {
+        id: pitchId,
+        userId: user.uid,
+        ideaDescription: idea,
+        createdAt: serverTimestamp(),
+        generatedPitch: {
+          id: uuidv4(),
+          pitchIdeaId: pitchId,
+          startupName: result.startupName,
+          tagline: result.tagline,
+          elevatorPitch: result.elevatorPitch,
+          targetAudience: result.targetAudience,
+          heroSectionCopy: result.heroSectionCopy,
+        },
+        designSuggestion: {
+          id: uuidv4(),
+          generatedPitchId: pitchId,
+          colorPalette: result.colorPaletteSuggestions,
+          logoConcepts: result.logoConceptSuggestions,
+        }
+      };
+      
+      // Use non-blocking write
+      setDocumentNonBlocking(pitchIdeaRef, pitchIdeaData, { merge: true });
+
+      toast({
+        title: 'Pitch Saved!',
+        description: `${result.startupName} has been saved to your collection.`,
+      });
+    } catch (e: any) {
+      console.error('Save error:', e);
+      toast({
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
+        description: e.message || 'Could not save recipe.',
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -139,19 +197,19 @@ ${heroSectionCopy}
 # Design Suggestions
 
 ## Color Palettes
-${colorPaletteSuggestions.map((palette) => `- ${palette.join(", ")}`).join("\n")}
+${colorPaletteSuggestions.map((palette) => `- ${palette.join(', ')}`).join('\n')}
 
 ## Logo Concepts
-${logoConceptSuggestions.map((concept) => `- ${concept}`).join("\n")}
+${logoConceptSuggestions.map((concept) => `- ${concept}`).join('\n')}
     `;
 
     const blob = new Blob([content.trim()], {
-      type: "text/markdown;charset=utf-8",
+      type: 'text/markdown;charset=utf-8',
     });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
-    a.download = `${startupName.toLowerCase().replace(/\s+/g, "-")}-pitch.md`;
+    a.download = `${startupName.toLowerCase().replace(/\s+/g, '-')}-pitch.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -170,7 +228,8 @@ ${logoConceptSuggestions.map((concept) => `- ${concept}`).join("\n")}
               Your Startup Idea
             </CardTitle>
             <CardDescription>
-              Describe your idea in a few sentences. The more detail, the better the pitch.
+              Describe your idea in a few sentences. The more detail, the better
+              the pitch.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -185,18 +244,31 @@ ${logoConceptSuggestions.map((concept) => `- ${concept}`).join("\n")}
           </CardContent>
           <div className="flex justify-end p-6 pt-0">
             <Button type="submit" disabled={loading} size="lg">
-              {loading ? "Generating..." : "Generate Pitch"}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                'Generate Pitch'
+              )}
             </Button>
           </div>
         </form>
       </Card>
-      
+
       {loading && <LoadingState />}
 
       {result && (
-        <ResultsDisplay result={result} onDownload={handleDownload} />
+        <ResultsDisplay
+          result={result}
+          onDownload={handleDownload}
+          onSave={handleSave}
+          isSaving={saving}
+          isLoggedIn={!!user}
+        />
       )}
-      
+
       <footer className="mt-auto text-center text-sm text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} PitchAI. All rights reserved.</p>
       </footer>
@@ -268,16 +340,34 @@ const LoadingState = () => (
 const ResultsDisplay: FC<{
   result: GenerationOutput;
   onDownload: () => void;
-}> = ({ result, onDownload }) => (
+  onSave: () => void;
+  isSaving: boolean;
+  isLoggedIn: boolean;
+}> = ({ result, onDownload, onSave, isSaving, isLoggedIn }) => (
   <div className="w-full max-w-5xl animate-in fade-in-50 duration-500 space-y-8">
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
       <h2 className="text-2xl font-headline font-bold text-center sm:text-3xl">
         Your Pitch is Ready!
       </h2>
-      <Button onClick={onDownload} variant="outline">
-        <Download className="mr-2" />
-        Download Pitch
-      </Button>
+      <div className="flex items-center gap-2">
+        {isLoggedIn && (
+          <Button onClick={onSave} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2" /> Save Pitch
+              </>
+            )}
+          </Button>
+        )}
+        <Button onClick={onDownload} variant="outline">
+          <Download className="mr-2" />
+          Download
+        </Button>
+      </div>
     </div>
 
     <div className="grid gap-8 lg:grid-cols-5">
@@ -332,7 +422,10 @@ const ResultsDisplay: FC<{
               <h4 className="font-semibold mb-2">Color Palettes</h4>
               <div className="flex flex-wrap gap-2">
                 {result.colorPaletteSuggestions.map((palette, i) => (
-                  <div key={i} className="flex overflow-hidden rounded-md border">
+                  <div
+                    key={i}
+                    className="flex overflow-hidden rounded-md border"
+                  >
                     {palette.map((color) => (
                       <div
                         key={color}
