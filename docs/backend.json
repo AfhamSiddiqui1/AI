@@ -1,0 +1,229 @@
+{
+  "entities": {
+    "PitchIdea": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PitchIdea",
+      "type": "object",
+      "description": "Represents a startup idea submitted by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the PitchIdea entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who submitted the idea. (Relationship: User 1:N PitchIdea)"
+        },
+        "ideaDescription": {
+          "type": "string",
+          "description": "The user's description of their startup idea."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the idea was submitted.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "ideaDescription",
+        "createdAt"
+      ]
+    },
+    "GeneratedPitch": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GeneratedPitch",
+      "type": "object",
+      "description": "Represents the AI-generated pitch details for a startup idea.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the GeneratedPitch entity."
+        },
+        "pitchIdeaId": {
+          "type": "string",
+          "description": "Reference to the PitchIdea this pitch was generated for. (Relationship: PitchIdea 1:1 GeneratedPitch)"
+        },
+        "startupName": {
+          "type": "string",
+          "description": "The AI-generated startup name."
+        },
+        "tagline": {
+          "type": "string",
+          "description": "The AI-generated tagline for the startup."
+        },
+        "elevatorPitch": {
+          "type": "string",
+          "description": "The AI-generated elevator pitch."
+        },
+        "targetAudience": {
+          "type": "string",
+          "description": "The AI-generated description of the target audience."
+        },
+        "heroSectionCopy": {
+          "type": "string",
+          "description": "The AI-generated hero section copy for the startup's website."
+        }
+      },
+      "required": [
+        "id",
+        "pitchIdeaId",
+        "startupName",
+        "tagline",
+        "elevatorPitch",
+        "targetAudience",
+        "heroSectionCopy"
+      ]
+    },
+    "DesignSuggestion": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DesignSuggestion",
+      "type": "object",
+      "description": "Represents the AI-generated design suggestions (color palette and logo concepts) for a startup.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DesignSuggestion entity."
+        },
+        "generatedPitchId": {
+          "type": "string",
+          "description": "Reference to the GeneratedPitch this design suggestion belongs to. (Relationship: GeneratedPitch 1:1 DesignSuggestion)"
+        },
+        "colorPalette": {
+          "type": "array",
+          "description": "An array of suggested colors for the startup's brand.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "logoConcepts": {
+          "type": "array",
+          "description": "An array of descriptions or references to suggested logo concepts.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "generatedPitchId",
+        "colorPalette",
+        "logoConcepts"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.  Authentication details are assumed to be handled externally.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. Access is restricted to the user themselves.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/pitchIdeas/{pitchIdeaId}",
+        "definition": {
+          "entityName": "PitchIdea",
+          "schema": {
+            "$ref": "#/backend/entities/PitchIdea"
+          },
+          "description": "Stores pitch ideas submitted by a specific user. Utilizes path-based ownership for simplified security rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "pitchIdeaId",
+              "description": "The unique identifier for the pitch idea."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/pitchIdeas/{pitchIdeaId}/generatedPitch",
+        "definition": {
+          "entityName": "GeneratedPitch",
+          "schema": {
+            "$ref": "#/backend/entities/GeneratedPitch"
+          },
+          "description": "Stores generated pitch data for a particular pitch idea. Path-based ownership simplifies rules.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "pitchIdeaId",
+              "description": "The unique identifier for the pitch idea."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/pitchIdeas/{pitchIdeaId}/designSuggestion",
+        "definition": {
+          "entityName": "DesignSuggestion",
+          "schema": {
+            "$ref": "#/backend/entities/DesignSuggestion"
+          },
+          "description": "Stores AI-generated design suggestions linked to a generated pitch. Path-based ownership maintained.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "pitchIdeaId",
+              "description": "The unique identifier for the pitch idea."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. It leverages path-based ownership for user-specific data and avoids hierarchical authorization dependencies by denormalizing authorization context where necessary. The structure supports secure list operations by segregating data based on ownership and access requirements.\n\n*   `/users/{userId}`: Stores user profiles. Access is restricted to the user themselves.\n*   `/users/{userId}/pitchIdeas/{pitchIdeaId}`: Stores pitch ideas submitted by a specific user. This utilizes path-based ownership for simplified security rules. This approach inherently supports QAPs because listing is scoped to a user's own pitch ideas.\n*   `/users/{userId}/pitchIdeas/{pitchIdeaId}/generatedPitch`: Stores generated pitch data for a particular pitch idea. Again path-based ownership simplifies rules and supports QAPs.\n*   `/users/{userId}/pitchIdeas/{pitchIdeaId}/designSuggestion`: Stores AI-generated design suggestions linked to a generated pitch. Path-based ownership maintained for consistency and security.\n\nThis design ensures that authorization checks can be performed efficiently without requiring `get()` calls to parent documents, enabling atomic operations and improving performance. Segregation of user-owned data under the `/users/{userId}` path simplifies security rules and prevents unauthorized access to other users' data. This provides the authorization independence required."
+  }
+}
