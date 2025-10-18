@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FC, type FormEvent } from 'react';
+import { useState, type FC, type FormEvent, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Brush,
@@ -14,6 +14,7 @@ import {
   Save,
   Loader2,
   Book,
+  RefreshCw,
 } from 'lucide-react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
@@ -45,10 +46,9 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type {
   PitchIdea,
-  GeneratedPitch,
-  DesignSuggestion,
 } from '@/lib/types';
 import { Header } from '@/components/header';
+import { Input } from '@/components/ui/input';
 
 type GenerationOutput = GeneratePitchFromIdeaOutput &
   GenerateHeroSectionCopyOutput &
@@ -59,11 +59,47 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<GenerationOutput | null>(null);
+  const [editableResult, setEditableResult] = useState<GenerationOutput | null>(null);
   const [pitchId, setPitchId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
+
+  useEffect(() => {
+    setEditableResult(result);
+  }, [result]);
+
+  const generateContent = async (startupIdea: string) => {
+    setLoading(true);
+    setResult(null);
+    if (!pitchId) {
+      setPitchId(uuidv4()); // Set ID only on first generation for a session
+    }
+
+    try {
+      const pitchData = await generatePitchFromIdea({ startupIdea });
+      const [heroCopyData, designData] = await Promise.all([
+        generateHeroSectionCopy({
+          startupIdea,
+          startupName: pitchData.startupName,
+          targetAudience: pitchData.targetAudience,
+        }),
+        suggestColorPaletteAndLogo({ startupIdea }),
+      ]);
+      setResult({ ...pitchData, ...heroCopyData, ...designData });
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: 'Generation Failed',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      });
+      setResult(null); // Ensure no partial results are shown
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -75,40 +111,23 @@ export default function Home() {
       });
       return;
     }
+    setPitchId(null); // Reset pitchId to get a new one for a new idea
+    await generateContent(idea);
+  };
+  
+  const handleRegenerate = async () => {
+    if (!idea.trim()) return;
+    await generateContent(idea);
+  };
 
-    setLoading(true);
-    setResult(null);
-    setPitchId(null);
-
-    try {
-      const pitchData = await generatePitchFromIdea({ startupIdea: idea });
-
-      const [heroCopyData, designData] = await Promise.all([
-        generateHeroSectionCopy({
-          startupIdea: idea,
-          startupName: pitchData.startupName,
-          targetAudience: pitchData.targetAudience,
-        }),
-        suggestColorPaletteAndLogo({ startupIdea: idea }),
-      ]);
-      
-      setResult({ ...pitchData, ...heroCopyData, ...designData });
-      setPitchId(uuidv4()); // Generate a new ID for this pitch
-    } catch (err: any) {
-      console.error(err);
-      toast({
-        title: 'Generation Failed',
-        description:
-          'An unexpected error occurred. Please check the console and try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+  const handleResultChange = (field: keyof GenerationOutput, value: any) => {
+    if (editableResult) {
+      setEditableResult({ ...editableResult, [field]: value });
     }
   };
 
   const handleSave = async () => {
-    if (!result || !user || !pitchId) {
+    if (!editableResult || !user || !pitchId) {
       toast({
         title: 'Cannot Save Pitch',
         description: user ? 'No pitch data to save.' : 'You must be logged in to save a pitch.',
@@ -130,17 +149,17 @@ export default function Home() {
         generatedPitch: {
           id: uuidv4(),
           pitchIdeaId: pitchId,
-          startupName: result.startupName,
-          tagline: result.tagline,
-          elevatorPitch: result.elevatorPitch,
-          targetAudience: result.targetAudience,
-          heroSectionCopy: result.heroSectionCopy,
+          startupName: editableResult.startupName,
+          tagline: editableResult.tagline,
+          elevatorPitch: editableResult.elevatorPitch,
+          targetAudience: editableResult.targetAudience,
+          heroSectionCopy: editableResult.heroSectionCopy,
         },
         designSuggestion: {
           id: uuidv4(),
           generatedPitchId: pitchId,
-          colorPalette: result.colorPaletteSuggestions,
-          logoConcepts: result.logoConceptSuggestions,
+          colorPalette: editableResult.colorPaletteSuggestions,
+          logoConcepts: editableResult.logoConceptSuggestions,
         }
       };
       
@@ -149,7 +168,7 @@ export default function Home() {
 
       toast({
         title: 'Pitch Saved!',
-        description: `${result.startupName} has been saved to your collection.`,
+        description: `${editableResult.startupName} has been saved to your collection.`,
       });
     } catch (e: any) {
       console.error('Save error:', e);
@@ -164,7 +183,7 @@ export default function Home() {
   };
 
   const handleDownload = () => {
-    if (!result) return;
+    if (!editableResult) return;
     const {
       startupName,
       tagline,
@@ -173,7 +192,7 @@ export default function Home() {
       heroSectionCopy,
       colorPaletteSuggestions,
       logoConceptSuggestions,
-    } = result;
+    } = editableResult;
 
     const content = `
 # Startup Pitch: ${startupName}
@@ -244,7 +263,7 @@ ${logoConceptSuggestions.map((concept) => `- ${concept}`).join('\n')}
           </CardContent>
           <div className="flex justify-end p-6 pt-0">
             <Button type="submit" disabled={loading} size="lg">
-              {loading ? (
+              {loading && !result ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Generating...
@@ -259,13 +278,16 @@ ${logoConceptSuggestions.map((concept) => `- ${concept}`).join('\n')}
 
       {loading && <LoadingState />}
 
-      {result && (
+      {editableResult && (
         <ResultsDisplay
-          result={result}
+          result={editableResult}
+          onResultChange={handleResultChange}
           onDownload={handleDownload}
           onSave={handleSave}
           isSaving={saving}
           isLoggedIn={!!user}
+          onRegenerate={handleRegenerate}
+          isRegenerating={loading}
         />
       )}
 
@@ -339,17 +361,31 @@ const LoadingState = () => (
 
 const ResultsDisplay: FC<{
   result: GenerationOutput;
+  onResultChange: (field: keyof GenerationOutput, value: any) => void;
   onDownload: () => void;
   onSave: () => void;
   isSaving: boolean;
   isLoggedIn: boolean;
-}> = ({ result, onDownload, onSave, isSaving, isLoggedIn }) => (
+  onRegenerate: () => void;
+  isRegenerating: boolean;
+}> = ({ result, onResultChange, onDownload, onSave, isSaving, isLoggedIn, onRegenerate, isRegenerating }) => (
   <div className="w-full max-w-5xl animate-in fade-in-50 duration-500 space-y-8">
     <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
       <h2 className="text-2xl font-headline font-bold text-center sm:text-3xl">
         Your Pitch is Ready!
       </h2>
       <div className="flex items-center gap-2">
+        <Button onClick={onRegenerate} disabled={isRegenerating} variant="outline">
+          {isRegenerating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Regenerating...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2" /> Regenerate
+            </>
+          )}
+        </Button>
         {isLoggedIn && (
           <Button onClick={onSave} disabled={isSaving}>
             {isSaving ? (
@@ -374,26 +410,44 @@ const ResultsDisplay: FC<{
       <div className="lg:col-span-3">
         <Card className="h-full shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline text-xl">
+            <div className="flex items-center gap-2 font-headline text-xl">
               <Rocket className="text-primary" />
-              {result.startupName}
-            </CardTitle>
-            <CardDescription className="flex items-center gap-2 italic">
+              <Input
+                  value={result.startupName}
+                  onChange={(e) => onResultChange('startupName', e.target.value)}
+                  className="text-xl font-bold font-headline bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
+                />
+            </div>
+             <div className="flex items-center gap-2 italic">
               <Megaphone className="h-4 w-4" />
-              {result.tagline}
-            </CardDescription>
+              <Input
+                  value={result.tagline}
+                  onChange={(e) => onResultChange('tagline', e.target.value)}
+                  className="italic bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
+                />
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
               <h3 className="font-semibold mb-2">Elevator Pitch</h3>
-              <p className="text-muted-foreground">{result.elevatorPitch}</p>
+               <Textarea
+                value={result.elevatorPitch}
+                onChange={(e) => onResultChange('elevatorPitch', e.target.value)}
+                className="text-muted-foreground bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto min-h-[60px]"
+                rows={3}
+              />
             </div>
             <div>
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 Target Audience
               </h3>
-              <p className="text-muted-foreground">{result.targetAudience}</p>
+               <Textarea
+                value={result.targetAudience}
+                onChange={(e) => onResultChange('targetAudience', e.target.value)}
+                className="text-muted-foreground bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto min-h-[40px]"
+                rows={2}
+              />
             </div>
           </CardContent>
         </Card>
@@ -407,7 +461,12 @@ const ResultsDisplay: FC<{
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">{result.heroSectionCopy}</p>
+            <Textarea
+                value={result.heroSectionCopy}
+                onChange={(e) => onResultChange('heroSectionCopy', e.target.value)}
+                className="text-muted-foreground bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto min-h-[80px]"
+                rows={4}
+              />
           </CardContent>
         </Card>
         <Card className="shadow-md">
