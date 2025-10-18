@@ -1,5 +1,4 @@
 import { googleAI } from '@genkit-ai/google-genai';
-import { googleCloud } from '@genkit-ai/google-cloud';
 import { genkit, type GenkitConfig } from 'genkit';
 import { config } from 'dotenv';
 config();
@@ -12,12 +11,6 @@ const genkitConfig: GenkitConfig = {
   plugins: [
     googleAI({
       apiKey: process.env.GEMINI_API_KEY,
-    }),
-    googleCloud({
-      firebaseFunctions: {
-        enabled: true,
-        allowHttp: false,
-      },
     }),
   ],
   model: 'googleai/gemini-2.5-flash',
