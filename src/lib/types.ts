@@ -23,7 +23,7 @@ export type GeneratedWebsite = {
     cta: { text: string; href: string };
     imageHint: string;
   };
-  categories: {
+  features: {
     title: string;
     items: {
       name: string;

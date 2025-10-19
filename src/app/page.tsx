@@ -2,15 +2,13 @@
 
 import { useState, type FC, type FormEvent } from 'react';
 import {
-  Brush,
   Download,
-  Lightbulb,
-  Save,
   Loader2,
   RefreshCw,
   ArrowRight,
   Code,
   Copy,
+  Palette,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { doc, serverTimestamp } from 'firebase/firestore';
@@ -35,7 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { PitchIdea } from '@/lib/types';
+import type { PitchIdea, DesignSuggestion } from '@/lib/types';
 import { Header } from '@/components/header';
 import {
   Dialog,
@@ -44,14 +42,90 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+
+// --- Predefined Color Palettes ---
+const colorPalettes: (Omit<DesignSuggestion, 'id' | 'generatedPitchId' | 'logoConcept'> & {name: string, id: string})[] = [
+    {
+      id: 'vibrant',
+      name: 'Vibrant',
+      colorPalette: {
+        background: '222.2 84% 4.9%',
+        foreground: '210 40% 98%',
+        primary: '142.1 76.2% 36.3%',
+        primaryForeground: '144.9 80.4% 10%',
+        mutedForeground: '215.4 16.3% 56.9%',
+        card: '222.2 84% 6.9%',
+        cardForeground: '210 40% 98%',
+        accent: '142.1 76.2% 36.3%',
+        accentForeground: '144.9 80.4% 10%',
+        border: '217.2 32.6% 17.5%',
+      },
+    },
+    {
+        id: 'earthy',
+        name: 'Earthy',
+        colorPalette: {
+            background: '20 31% 12%',
+            foreground: '20 5% 80%',
+            primary: '33 74% 64%',
+            primaryForeground: '20 31% 10%',
+            mutedForeground: '20 5% 55%',
+            card: '20 31% 15%',
+            cardForeground: '20 5% 85%',
+            accent: '33 74% 64%',
+            accentForeground: '20 31% 10%',
+            border: '20 31% 20%',
+        }
+    },
+    {
+        id: 'monochrome',
+        name: 'Monochrome',
+        colorPalette: {
+            background: '0 0% 8%',
+            foreground: '0 0% 80%',
+            primary: '0 0% 98%',
+            primaryForeground: '0 0% 9%',
+            mutedForeground: '0 0% 55%',
+            card: '0 0% 12%',
+            cardForeground: '0 0% 85%',
+            accent: '0 0% 98%',
+            accentForeground: '0 0% 9%',
+            border: '0 0% 18%',
+        },
+    },
+    {
+        id: 'ocean',
+        name: 'Oceanic',
+        colorPalette: {
+            background: '210 40% 9%',
+            foreground: '210 40% 80%',
+            primary: '180 100% 35%',
+            primaryForeground: '180 100% 95%',
+            mutedForeground: '210 40% 55%',
+            card: '210 40% 12%',
+            cardForeground: '210 40% 85%',
+            accent: '180 100% 35%',
+            accentForeground: '180 100% 95%',
+            border: '210 40% 18%',
+        },
+    }
+  ];
+
+type CombinedResult = GenerateWebsiteFromIdeaOutput & {
+  design: Omit<GenerateWebsiteFromIdeaOutput['design'], 'colorPalette'> & {
+    colorPalette: DesignSuggestion['colorPalette'];
+  };
+};
 
 export default function Home() {
   const [idea, setIdea] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [result, setResult] =
-    useState<GenerateWebsiteFromIdeaOutput | null>(null);
+  const [result, setResult] = useState<CombinedResult | null>(null);
   const [pitchId, setPitchId] = useState<string | null>(null);
+  const [selectedPaletteId, setSelectedPaletteId] = useState<string>(colorPalettes[0].id);
 
   const { toast } = useToast();
   const { user } = useUser();
@@ -66,12 +140,26 @@ export default function Home() {
 
     try {
       const websiteData = await generateWebsiteFromIdea({ startupIdea });
-      setResult(websiteData);
+      const selectedPalette = colorPalettes.find(p => p.id === selectedPaletteId);
+
+      if (!selectedPalette) {
+        throw new Error("Selected color palette not found.");
+      }
+
+      const combinedResult: CombinedResult = {
+        ...websiteData,
+        design: {
+          ...websiteData.design,
+          colorPalette: selectedPalette.colorPalette,
+        },
+      };
+
+      setResult(combinedResult);
     } catch (err: any) {
       console.error(err);
       toast({
         title: 'Generation Failed',
-        description: 'An unexpected error occurred. Please try again.',
+        description: err.message || 'An unexpected error occurred. Please try again.',
         variant: 'destructive',
       });
       setResult(null); // Ensure no partial results are shown
@@ -128,8 +216,9 @@ export default function Home() {
         },
         designSuggestion: {
           id: uuidv4(),
-          generatedPitchId: pitchId, // This should be websiteId, consistent with schema
-          ...result.design,
+          generatedPitchId: pitchId,
+          colorPalette: result.design.colorPalette,
+          logoConcept: result.design.logoConcept,
         },
       };
 
@@ -160,7 +249,6 @@ export default function Home() {
           <form onSubmit={handleSubmit}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 font-headline">
-                <Lightbulb />
                 Your Startup Idea
               </CardTitle>
               <CardDescription>
@@ -168,7 +256,7 @@ export default function Home() {
                 better the design.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <Textarea
                 placeholder="e.g., A mobile app that connects local gardeners with people who want fresh, organic produce."
                 value={idea}
@@ -177,6 +265,36 @@ export default function Home() {
                 disabled={loading}
                 className="resize-none"
               />
+              <div>
+                <Label className="flex items-center gap-2 mb-4 font-medium">
+                  <Palette/>
+                  Choose a Color Theme
+                </Label>
+                <RadioGroup 
+                  defaultValue={selectedPaletteId}
+                  onValueChange={setSelectedPaletteId}
+                  className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                >
+                  {colorPalettes.map(palette => (
+                    <Label 
+                      key={palette.id}
+                      htmlFor={palette.id}
+                      className={cn(
+                        "flex flex-col items-center justify-center rounded-md border-2 p-4 cursor-pointer hover:border-accent",
+                        selectedPaletteId === palette.id && "border-primary"
+                      )}
+                    >
+                      <div className="flex -space-x-2 overflow-hidden">
+                        {Object.values(palette.colorPalette).slice(0, 5).map((color, i) => (
+                          <div key={i} className="w-6 h-6 rounded-full border-2 border-background" style={{ backgroundColor: `hsl(${color})` }}></div>
+                        ))}
+                      </div>
+                       <RadioGroupItem value={palette.id} id={palette.id} className="sr-only" />
+                      <span className="mt-2 text-sm font-medium">{palette.name}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+              </div>
             </CardContent>
             <div className="flex justify-end p-6 pt-0">
               <Button type="submit" disabled={loading} size="lg">
@@ -223,7 +341,7 @@ const LoadingState = () => (
 );
 
 const ResultsDisplay: FC<{
-  result: GenerateWebsiteFromIdeaOutput;
+  result: CombinedResult;
   onSave: () => void;
   isSaving: boolean;
   isLoggedIn: boolean;
@@ -254,9 +372,9 @@ const ResultsDisplay: FC<{
 
   const navbarCode = `<Navbar\n  startupName="${website.startupName}"\n  logoConcept="${design.logoConcept}"\n  links={${JSON.stringify(website.navbar.links, null, 2)}}\n  cta={${JSON.stringify(website.navbar.cta, null, 2)}}\n/>`;
   const heroCode = `<Hero\n  headline="${website.hero.headline}"\n  description="${website.hero.description}"\n  cta={${JSON.stringify(website.hero.cta, null, 2)}}\n  imageHint="${website.hero.imageHint}"\n/>`;
-  const categoriesCode = `<Categories\n  title="${website.categories.title}"\n  items={${JSON.stringify(website.categories.items, null, 2)}}\n/>`;
+  const featuresCode = `<Features\n  title="${website.features.title}"\n  items={${JSON.stringify(website.features.items, null, 2)}}\n/>`;
   const footerCode = `<Footer\n  startupName="${website.startupName}"\n  copyright="${website.footer.copyright}"\n  links={${JSON.stringify(website.footer.links, null, 2)}}\n/>`;
-  const fullCode = `${navbarCode}\n${heroCode}\n${categoriesCode}\n${footerCode}`;
+  const fullCode = `${navbarCode}\n${heroCode}\n${featuresCode}\n${footerCode}`;
 
   const downloadHtml = () => {
     const htmlContent = `
@@ -303,7 +421,7 @@ const ResultsDisplay: FC<{
       
       const Navbar = (${navbarCode});
       const Hero = (${heroCode});
-      const Categories = (${categoriesCode});
+      const Features = (${featuresCode});
       const Footer = (${footerCode});
 
       const App = () => (
@@ -311,7 +429,7 @@ const ResultsDisplay: FC<{
           <div className="bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-body">
             <Navbar />
             <Hero />
-            <Categories />
+            <Features />
             <Footer />
           </div>
         </div>
@@ -362,7 +480,7 @@ const ResultsDisplay: FC<{
                 </>
               ) : (
                 <>
-                  <Save className="mr-2" /> Save Design
+                  <Download className="mr-2" /> Save Design
                 </>
               )}
             </Button>
@@ -391,9 +509,9 @@ const ResultsDisplay: FC<{
             cta={website.hero.cta}
             imageHint={website.hero.imageHint}
           />
-          <Categories
-            title={website.categories.title}
-            items={website.categories.items}
+          <Features
+            title={website.features.title}
+            items={website.features.items}
           />
           <Footer
             startupName={website.startupName}
@@ -517,7 +635,7 @@ const Hero: FC<{
   );
 };
 
-const Categories: FC<{
+const Features: FC<{
   title: string;
   items: { name: string; description: string; iconName: string }[];
 }> = ({ title, items }) => {

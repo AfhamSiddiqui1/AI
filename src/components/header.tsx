@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, Book } from 'lucide-react';
+import { LogOut, Book, Download } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import {
   DropdownMenu,
