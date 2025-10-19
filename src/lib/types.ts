@@ -31,6 +31,15 @@ export type GeneratedWebsite = {
       iconName: string;
     }[];
   };
+  testimonials: {
+    title: string;
+    items: {
+      name: string;
+      role: string;
+      quote: string;
+      avatarUrl: string;
+    }[];
+  };
   footer: {
     copyright: string;
     links: { text: string; href: string }[];

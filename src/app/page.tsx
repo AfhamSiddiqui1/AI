@@ -9,6 +9,7 @@ import {
   Code,
   Copy,
   Palette,
+  Quote,
 } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { doc, serverTimestamp } from 'firebase/firestore';
@@ -44,6 +45,7 @@ import {
 } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // --- Predefined Color Palettes ---
 const colorPalettes: (Omit<DesignSuggestion, 'id' | 'generatedPitchId' | 'logoConcept'> & {name: string, id: string})[] = [
@@ -373,8 +375,9 @@ const ResultsDisplay: FC<{
   const navbarCode = `<Navbar\n  startupName="${website.startupName}"\n  logoConcept="${design.logoConcept}"\n  links={${JSON.stringify(website.navbar.links, null, 2)}}\n  cta={${JSON.stringify(website.navbar.cta, null, 2)}}\n/>`;
   const heroCode = `<Hero\n  headline="${website.hero.headline}"\n  description="${website.hero.description}"\n  cta={${JSON.stringify(website.hero.cta, null, 2)}}\n  imageHint="${website.hero.imageHint}"\n/>`;
   const featuresCode = `<Features\n  title="${website.features.title}"\n  items={${JSON.stringify(website.features.items, null, 2)}}\n/>`;
+  const testimonialsCode = `<Testimonials\n  title="${website.testimonials.title}"\n  items={${JSON.stringify(website.testimonials.items, null, 2)}}\n/>`;
   const footerCode = `<Footer\n  startupName="${website.startupName}"\n  copyright="${website.footer.copyright}"\n  links={${JSON.stringify(website.footer.links, null, 2)}}\n/>`;
-  const fullCode = `${navbarCode}\n${heroCode}\n${featuresCode}\n${footerCode}`;
+  const fullCode = `${navbarCode}\n${heroCode}\n${featuresCode}\n${testimonialsCode}\n${footerCode}`;
 
   const downloadHtml = () => {
     const htmlContent = `
@@ -422,6 +425,7 @@ const ResultsDisplay: FC<{
       const Navbar = (${navbarCode});
       const Hero = (${heroCode});
       const Features = (${featuresCode});
+      const Testimonials = (${testimonialsCode});
       const Footer = (${footerCode});
 
       const App = () => (
@@ -430,6 +434,7 @@ const ResultsDisplay: FC<{
             <Navbar />
             <Hero />
             <Features />
+            <Testimonials />
             <Footer />
           </div>
         </div>
@@ -512,6 +517,10 @@ const ResultsDisplay: FC<{
           <Features
             title={website.features.title}
             items={website.features.items}
+          />
+           <Testimonials
+            title={website.testimonials.title}
+            items={website.testimonials.items}
           />
           <Footer
             startupName={website.startupName}
@@ -668,6 +677,51 @@ const Features: FC<{
               </div>
             );
           })}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const Testimonials: FC<{
+  title: string;
+  items: { name: string; role: string; quote: string; avatarUrl: string }[];
+}> = ({ title, items }) => {
+  return (
+    <section className="py-20 sm:py-24">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl sm:text-4xl font-bold font-headline animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {title}
+          </h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {items.map((item, index) => (
+            <Card
+              key={index}
+              className="bg-[hsl(var(--card))] p-8 rounded-xl shadow-lg transform transition-transform hover:-translate-y-2 animate-in fade-in slide-in-from-bottom-5 duration-500"
+              style={{ animationDelay: `${300 + index * 150}ms` }}
+            >
+              <CardContent className="p-0 flex flex-col items-center text-center">
+                <Quote className="h-8 w-8 text-[hsl(var(--primary))] mb-4" />
+                <p className="text-[hsl(var(--card-foreground))] text-lg mb-6">
+                  "{item.quote}"
+                </p>
+                <div className="flex items-center">
+                  <Avatar className="h-12 w-12 mr-4">
+                    <AvatarImage src={item.avatarUrl} alt={item.name} />
+                    <AvatarFallback>{item.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold text-md">{item.name}</p>
+                    <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                      {item.role}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </section>

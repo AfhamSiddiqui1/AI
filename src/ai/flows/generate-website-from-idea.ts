@@ -27,6 +27,13 @@ const FeatureSchema = z.object({
     iconName: z.string().describe("A valid icon name from the lucide-react library (e.g., 'ShieldCheck', 'Zap', 'Users')."),
 });
 
+const TestimonialSchema = z.object({
+    name: z.string().describe("The name of the person giving the testimonial."),
+    role: z.string().describe("The role or title of the person (e.g., 'CEO, Acme Inc.')."),
+    quote: z.string().describe("A short, impactful quote (2-3 sentences)."),
+    avatarUrl: z.string().describe("A placeholder URL for an avatar image.")
+});
+
 const ColorPaletteSchema = z.object({
     background: z.string().describe("HSL value for the main background color (e.g., '0 0% 100%')."),
     foreground: z.string().describe("HSL value for the main text color."),
@@ -56,6 +63,10 @@ const GenerateWebsiteFromIdeaOutputSchema = z.object({
     features: z.object({
       title: z.string().describe("A title for the features section (e.g., 'Why Choose Us?', 'Key Features')."),
       items: z.array(FeatureSchema).describe("An array of 3 key feature or benefit items.")
+    }),
+    testimonials: z.object({
+      title: z.string().describe("A title for the testimonials section (e.g., 'What Our Customers Say')."),
+      items: z.array(TestimonialSchema).describe("An array of 2-3 customer testimonials.")
     }),
     footer: z.object({
         copyright: z.string().describe("The copyright notice, including the startup name and current year."),
@@ -90,6 +101,7 @@ const prompt = ai.definePrompt({
       *   **Navbar:** Generate 3-4 standard navigation links and a compelling call-to-action (CTA) button.
       *   **Hero Section:** Write a powerful headline (max 10 words), a concise and persuasive description (1-2 sentences), and a primary CTA. Also, provide a 2-3 word hint for a suitable background image.
       *   **Features Section:** Generate a title and 3 items. For each item, provide a name, a short description, and a relevant and valid icon name from the 'lucide-react' library.
+      *   **Testimonials Section:** Generate a title and 2-3 testimonials. For each, provide a fictional name, role, a compelling quote, and use a placeholder image URL from 'https://picsum.photos/seed/{some-random-word}/100/100'.
       *   **Footer:** Create a standard copyright notice and 3-5 common footer links.
   3.  **Design Concept:**
       *   **Logo Concept:** Describe a simple, modern logo concept in one sentence.
