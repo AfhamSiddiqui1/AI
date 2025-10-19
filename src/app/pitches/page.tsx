@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Loader2, PlusCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, PlusCircle } from 'lucide-react';
 import type { PitchIdea } from '@/lib/types';
 import { Header } from '@/components/header';
 
@@ -69,9 +69,9 @@ export default function PitchesPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 py-10 md:p-16">
-      <Header />
-      <main className="mt-12">
+    <div className="flex flex-col min-h-screen">
+       <Header />
+      <main className="container mx-auto flex-1 p-4 pt-24 md:pt-32">
         <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold font-headline">My Saved Designs</h1>
              <Button asChild variant="outline">
@@ -83,19 +83,24 @@ export default function PitchesPage() {
         </div>
 
         {sortedPitches.length === 0 ? (
-          <div className="text-center py-20 border-2 border-dashed rounded-lg">
-            <h3 className="text-xl font-semibold">No designs saved yet.</h3>
-            <p className="text-muted-foreground mt-2">
-              Start by generating a new website design to see it here.
-            </p>
+          <div className="flex items-center justify-center h-[50vh] border-2 border-dashed rounded-lg">
+            <div className="text-center">
+                <h3 className="text-xl font-semibold">No designs saved yet.</h3>
+                <p className="text-muted-foreground mt-2 mb-4">
+                Start by generating a new website design to see it here.
+                </p>
+                <Button asChild>
+                    <Link href="/">Generate a New Design</Link>
+                </Button>
+            </div>
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {sortedPitches.map((pitch) => (
-              <Card key={pitch.id} className="flex flex-col">
+              <Card key={pitch.id} className="flex flex-col hover:shadow-lg transition-shadow duration-300">
                 <CardHeader>
                   <CardTitle>{pitch.generatedWebsite?.startupName || 'Untitled Design'}</CardTitle>
-                   <CardDescription className="line-clamp-2">
+                   <CardDescription className="line-clamp-2 pt-1">
                     {pitch.ideaDescription}
                   </CardDescription>
                 </CardHeader>
@@ -104,7 +109,7 @@ export default function PitchesPage() {
                     Created on {getCreationDate(pitch)}
                   </p>
                 </CardContent>
-                <div className="p-6 pt-0">
+                <div className="p-4 pt-0">
                     <Button asChild className="w-full">
                         {/* This will eventually link to a detailed view page */}
                         <Link href="#">View Details</Link>
