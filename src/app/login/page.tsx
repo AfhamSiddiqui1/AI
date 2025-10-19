@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/firebase';
 import { signInWithEmailAndPassword, AuthErrorCodes } from 'firebase/auth';
-import { PitchAILogo } from '@/components/logo';
+import { GbellAILogo } from '@/components/logo';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
@@ -81,7 +81,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="flex flex-col items-center gap-6 text-center">
-        <PitchAILogo />
+        <GbellAILogo />
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <Card className="w-full max-w-sm">
@@ -90,7 +90,7 @@ export default function LoginPage() {
                   Welcome Back!
                 </CardTitle>
                 <CardDescription>
-                  Enter your email and password to access your pitches.
+                  Enter your email and password to access your designs.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">

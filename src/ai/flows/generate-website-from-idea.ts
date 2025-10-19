@@ -21,6 +21,12 @@ const LinkSchema = z.object({
     href: z.string().describe("The URL for the link, typically starting with '#' for internal links."),
 });
 
+const CategorySchema = z.object({
+    name: z.string().describe("The name of the feature or category."),
+    description: z.string().describe("A brief (1-2 sentence) description of the category."),
+    iconName: z.string().describe("A valid icon name from the lucide-react library (e.g., 'ShieldCheck', 'Zap', 'Users')."),
+});
+
 const ColorPaletteSchema = z.object({
     background: z.string().describe("HSL value for the main background color (e.g., '0 0% 100%')."),
     foreground: z.string().describe("HSL value for the main text color."),
@@ -46,6 +52,10 @@ const GenerateWebsiteFromIdeaOutputSchema = z.object({
       description: z.string().describe('A compelling 1-2 sentence description of the startup\'s value proposition.'),
       cta: LinkSchema.describe('A primary call-to-action for the hero section (e.g., "Get Started").'),
       imageHint: z.string().describe('Two or three keywords describing a relevant hero image (e.g., "team working", "data analytics").'),
+    }),
+    categories: z.object({
+      title: z.string().describe("A title for the categories section (e.g., 'Why Choose Us?', 'Key Features')."),
+      items: z.array(CategorySchema).describe("An array of 3-4 category or feature items.")
     }),
     footer: z.object({
         copyright: z.string().describe("The copyright notice, including the startup name and current year."),
@@ -80,6 +90,7 @@ const prompt = ai.definePrompt({
   2.  **Website Content:**
       *   **Navbar:** Generate 3-4 standard navigation links and a compelling call-to-action (CTA) button.
       *   **Hero Section:** Write a powerful headline (max 10 words), a concise and persuasive description (1-2 sentences), and a primary CTA. Also, provide a 2-3 word hint for a suitable background image.
+      *   **Categories/Features Section:** Generate a title and 3-4 items. For each item, provide a name, a short description, and a relevant and valid icon name from the 'lucide-react' library.
       *   **Footer:** Create a standard copyright notice and 3-5 common footer links.
   3.  **Design System:**
       *   **Color Palette:** Generate a complete, modern, and cohesive color palette using HSL values. The palette should be suitable for a dark-themed web application. Provide values for background, foreground, primary, primary-foreground, muted-foreground, card, card-foreground, accent, accent-foreground, and border.

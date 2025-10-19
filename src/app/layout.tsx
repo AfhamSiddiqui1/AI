@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'PitchAI',
+  title: 'Gbell AI',
   description: 'Generate your next startup pitch with the power of AI.',
 };
 

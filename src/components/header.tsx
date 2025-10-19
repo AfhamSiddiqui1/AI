@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LogOut, User as UserIcon, Book } from 'lucide-react';
+import { LogOut, Book } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import {
   DropdownMenu,
@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { PitchAILogo } from './logo';
+import { GbellAILogo } from './logo';
 
 function getInitials(name: string | null | undefined): string {
   if (!name) return 'U';
@@ -39,8 +39,8 @@ export const Header = () => {
   return (
     <header className="absolute top-0 left-0 right-0 p-4 md:p-6 flex justify-between items-center">
       <Link href="/" className="flex items-center gap-2">
-        <PitchAILogo />
-        <span className="font-bold font-headline text-lg hidden sm:inline">PitchAI</span>
+        <GbellAILogo />
+        <span className="font-bold font-headline text-lg hidden sm:inline">Gbell AI</span>
       </Link>
       
       <div className="flex items-center gap-4">
@@ -51,7 +51,7 @@ export const Header = () => {
             <Button variant="ghost" asChild>
                 <Link href="/pitches">
                     <Book className="mr-2 h-4 w-4" />
-                    My Pitches
+                    My Designs
                 </Link>
             </Button>
             <DropdownMenu>

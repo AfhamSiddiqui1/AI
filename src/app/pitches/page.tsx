@@ -52,7 +52,7 @@ export default function PitchesPage() {
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-center">
         <h2 className="text-2xl font-bold">Access Denied</h2>
         <p className="text-muted-foreground">
-          You must be logged in to view your saved pitches.
+          You must be logged in to view your saved designs.
         </p>
         <Button asChild>
           <Link href="/login">Log In</Link>

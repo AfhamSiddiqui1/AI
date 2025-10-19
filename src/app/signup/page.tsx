@@ -33,7 +33,7 @@ import {
   AuthErrorCodes,
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { PitchAILogo } from '@/components/logo';
+import { GbellAILogo } from '@/components/logo';
 
 const signupFormSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -82,7 +82,7 @@ export default function SignupPage() {
 
       toast({
         title: 'Account Created',
-        description: 'Welcome! You can now generate and save your pitches.',
+        description: 'Welcome! You can now generate and save your designs.',
       });
       router.push('/');
     } catch (error: any) {
@@ -104,7 +104,7 @@ export default function SignupPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="flex flex-col items-center gap-6 text-center">
-        <PitchAILogo />
+        <GbellAILogo />
         <FormProvider {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <Card className="w-full max-w-sm">
@@ -113,7 +113,7 @@ export default function SignupPage() {
                   Create an Account
                 </CardTitle>
                 <CardDescription>
-                  Join PitchAI to start generating and saving your ideas.
+                  Join Gbell AI to start generating and saving your ideas.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">

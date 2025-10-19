@@ -23,6 +23,14 @@ export type GeneratedWebsite = {
     cta: { text: string; href: string };
     imageHint: string;
   };
+  categories: {
+    title: string;
+    items: {
+      name: string;
+      description: string;
+      iconName: string;
+    }[];
+  };
   footer: {
     copyright: string;
     links: { text: string; href: string }[];
