@@ -19,8 +19,8 @@ export type SuggestColorPaletteAndLogoInput = z.infer<typeof SuggestColorPalette
 
 const SuggestColorPaletteAndLogoOutputSchema = z.object({
   colorPaletteSuggestions: z
-    .array(z.string())
-    .describe('An array of suggested color palettes in hex codes.'),
+    .array(z.array(z.string()))
+    .describe('An array of suggested color palettes. Each inner array should contain hex codes.'),
   logoConceptSuggestions: z
     .array(z.string())
     .describe('An array of suggested logo concepts.'),
@@ -43,7 +43,7 @@ const prompt = ai.definePrompt({
   Startup Idea: {{{startupIdea}}}
 
   Guidelines:
-  *   Color palettes should be an array of hex codes.
+  *   Color palettes should be an array of arrays, where each inner array contains hex codes for a single palette.
   *   Logo concepts should be an array of text descriptions.
   *   Be concise but creative.
 
