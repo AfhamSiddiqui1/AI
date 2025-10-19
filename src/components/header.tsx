@@ -40,23 +40,26 @@ export const Header = () => {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <GbellAILogo />
-          <span className="font-bold font-headline text-lg hidden sm:inline">Gbell AI</span>
-        </Link>
+        <div className="flex items-center gap-2 flex-1">
+          <Link href="/" className="flex items-center gap-2">
+            <GbellAILogo />
+            <span className="font-bold font-headline text-lg hidden sm:inline">Gbell AI</span>
+          </Link>
+        </div>
         
-        <div className="flex items-center gap-4">
-          <nav className="hidden md:flex items-center gap-6">
-              <Button variant="link" asChild>
-                  <Link href="/">Home</Link>
-              </Button>
-              <Button variant="link" asChild>
-                  <Link href="/about">About Us</Link>
-              </Button>
-              <Button variant="link" asChild>
-                  <a href="mailto:syedmuhammadhussainrizvi3@gmail.com">Contact Us</a>
-              </Button>
-          </nav>
+        <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
+            <Button variant="link" asChild>
+                <Link href="/">Home</Link>
+            </Button>
+            <Button variant="link" asChild>
+                <Link href="/about">About Us</Link>
+            </Button>
+            <Button variant="link" asChild>
+                <a href="mailto:syedmuhammadhussainrizvi3@gmail.com">Contact Us</a>
+            </Button>
+        </nav>
+
+        <div className="flex items-center gap-4 flex-1 justify-end">
           {isUserLoading ? (
             <div className="h-10 w-24 rounded-md bg-muted animate-pulse" />
           ) : user ? (
