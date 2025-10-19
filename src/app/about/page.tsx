@@ -15,7 +15,7 @@ export default function AboutPage() {
         <Card className="w-full max-w-lg shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
           <CardHeader className="items-center text-center">
             <Avatar className="h-24 w-24 mb-4">
-              <AvatarImage src="https://github.com/shadcn.png" alt="Syed Muhammad Hussain Rizvi" />
+              <AvatarImage src="https://i.ibb.co/6g2yYpL/image.png" alt="Syed Muhammad Hussain Rizvi" />
               <AvatarFallback>SH</AvatarFallback>
             </Avatar>
             <CardTitle className="text-3xl font-headline">
@@ -35,7 +35,7 @@ export default function AboutPage() {
                 </Link>
               </Button>
                <Button variant="outline" size="icon" asChild>
-                <Link href="https://github.com" target="_blank" rel="noopener noreferrer">
+                <Link href="https://github.com/syed-muhammad-hussain-rizvi" target="_blank" rel="noopener noreferrer">
                   <Github className="h-5 w-5" />
                    <span className="sr-only">GitHub</span>
                 </Link>
