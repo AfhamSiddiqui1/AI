@@ -6,18 +6,15 @@ import {
   Brush,
   Download,
   Lightbulb,
-  Megaphone,
-  Newspaper,
-  Palette,
   Rocket,
-  Users,
   Save,
   Loader2,
-  Book,
   RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
+import Image from 'next/image';
 
 import {
   useUser,
@@ -25,12 +22,7 @@ import {
   setDocumentNonBlocking,
 } from '@/firebase';
 
-import type { GeneratePitchFromIdeaOutput } from '@/ai/flows/generate-pitch-from-idea';
-import { generatePitchFromIdea } from '@/ai/flows/generate-pitch-from-idea';
-import type { GenerateHeroSectionCopyOutput } from '@/ai/flows/generate-website-hero-section-copy';
-import { generateHeroSectionCopy } from '@/ai/flows/generate-website-hero-section-copy';
-import type { SuggestColorPaletteAndLogoOutput } from '@/ai/flows/suggest-color-palette-and-logo';
-import { suggestColorPaletteAndLogo } from '@/ai/flows/suggest-color-palette-and-logo';
+import { generateWebsiteFromIdea, type GenerateWebsiteFromIdeaOutput } from '@/ai/flows/generate-website-from-idea';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -46,29 +38,22 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type {
   PitchIdea,
+  GeneratedWebsite,
+  DesignSuggestion
 } from '@/lib/types';
 import { Header } from '@/components/header';
 import { Input } from '@/components/ui/input';
-
-type GenerationOutput = GeneratePitchFromIdeaOutput &
-  GenerateHeroSectionCopyOutput &
-  SuggestColorPaletteAndLogoOutput;
 
 export default function Home() {
   const [idea, setIdea] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState<GenerationOutput | null>(null);
-  const [editableResult, setEditableResult] = useState<GenerationOutput | null>(null);
+  const [result, setResult] = useState<GenerateWebsiteFromIdeaOutput | null>(null);
   const [pitchId, setPitchId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
-
-  useEffect(() => {
-    setEditableResult(result);
-  }, [result]);
 
   const generateContent = async (startupIdea: string) => {
     setLoading(true);
@@ -78,16 +63,8 @@ export default function Home() {
     }
 
     try {
-      const pitchData = await generatePitchFromIdea({ startupIdea });
-      const [heroCopyData, designData] = await Promise.all([
-        generateHeroSectionCopy({
-          startupIdea,
-          startupName: pitchData.startupName,
-          targetAudience: pitchData.targetAudience,
-        }),
-        suggestColorPaletteAndLogo({ startupIdea }),
-      ]);
-      setResult({ ...pitchData, ...heroCopyData, ...designData });
+      const websiteData = await generateWebsiteFromIdea({ startupIdea });
+      setResult(websiteData);
     } catch (err: any) {
       console.error(err);
       toast({
@@ -120,14 +97,8 @@ export default function Home() {
     await generateContent(idea);
   };
 
-  const handleResultChange = (field: keyof GenerationOutput, value: any) => {
-    if (editableResult) {
-      setEditableResult({ ...editableResult, [field]: value });
-    }
-  };
-
   const handleSave = async () => {
-    if (!editableResult || !user || !pitchId) {
+    if (!result || !user || !pitchId) {
       toast({
         title: 'Cannot Save Pitch',
         description: user ? 'No pitch data to save.' : 'You must be logged in to save a pitch.',
@@ -146,20 +117,15 @@ export default function Home() {
         userId: user.uid,
         ideaDescription: idea,
         createdAt: serverTimestamp(),
-        generatedPitch: {
+        generatedWebsite: {
           id: uuidv4(),
           pitchIdeaId: pitchId,
-          startupName: editableResult.startupName,
-          tagline: editableResult.tagline,
-          elevatorPitch: editableResult.elevatorPitch,
-          targetAudience: editableResult.targetAudience,
-          heroSectionCopy: editableResult.heroSectionCopy,
+          ...result.website
         },
         designSuggestion: {
           id: uuidv4(),
-          generatedPitchId: pitchId,
-          colorPalette: editableResult.colorPaletteSuggestions,
-          logoConcepts: editableResult.logoConceptSuggestions,
+          generatedPitchId: pitchId, // TODO: This should be websiteId, need to update type
+          ...result.design,
         }
       };
       
@@ -167,8 +133,8 @@ export default function Home() {
       setDocumentNonBlocking(pitchIdeaRef, pitchIdeaData, { merge: true });
 
       toast({
-        title: 'Pitch Saved!',
-        description: `${editableResult.startupName} has been saved to your collection.`,
+        title: 'Design Saved!',
+        description: `${result.website.startupName} has been saved to your collection.`,
       });
     } catch (e: any) {
       console.error('Save error:', e);
@@ -183,52 +149,49 @@ export default function Home() {
   };
 
   const handleDownload = () => {
-    if (!editableResult) return;
+    if (!result) return;
     const {
-      startupName,
-      tagline,
-      elevatorPitch,
-      targetAudience,
-      heroSectionCopy,
-      colorPaletteSuggestions,
-      logoConceptSuggestions,
-    } = editableResult;
+      website: {
+        startupName,
+        navbar,
+        hero,
+        footer,
+      },
+      design: {
+        colorPalette,
+        logoConcept
+      }
+    } = result;
 
     const content = `
-# Startup Pitch: ${startupName}
+# Startup: ${startupName}
 
-## Tagline
-> ${tagline}
+## Design System
+- Logo Concept: ${logoConcept}
+- Color Palette: ${Object.entries(colorPalette).map(([name, hsl]) => `\n  - ${name}: ${hsl}`).join('')}
 
-## Elevator Pitch
-${elevatorPitch}
+## Navbar
+- Links: ${navbar.links.map(l => l.text).join(', ')}
+- CTA: ${navbar.cta.text}
 
-## Target Audience
-${targetAudience}
+## Hero Section
+- Headline: ${hero.headline}
+- Description: ${hero.description}
+- CTA: ${hero.cta.text}
+- Image Hint: ${hero.imageHint}
 
----
-
-# Website Hero Section Copy
-${heroSectionCopy}
-
----
-
-# Design Suggestions
-
-## Color Palettes
-${colorPaletteSuggestions.map((palette) => `- ${palette.join(', ')}`).join('\n')}
-
-## Logo Concepts
-${logoConceptSuggestions.map((concept) => `- ${concept}`).join('\n')}
+## Footer
+- Copyright: ${footer.copyright}
+- Links: ${footer.links.map(l => l.text).join(', ')}
     `;
 
     const blob = new Blob([content.trim()], {
-      type: 'text/markdown;charset=utf-8',
+      type: 'text/markdown;charset=utf-t',
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${startupName.toLowerCase().replace(/\s+/g, '-')}-pitch.md`;
+    a.download = `${startupName.toLowerCase().replace(/\s+/g, '-')}-website-design.md`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -236,281 +199,266 @@ ${logoConceptSuggestions.map((concept) => `- ${concept}`).join('\n')}
   };
 
   return (
-    <main className="container mx-auto flex min-h-screen flex-col items-center gap-12 p-4 py-10 md:p-16">
+    <div className="flex flex-col min-h-screen">
       <Header />
+      <main className="container mx-auto flex flex-1 flex-col items-center gap-12 p-4 pt-24 md:pt-32">
+        <Card className="w-full max-w-3xl shadow-lg">
+          <form onSubmit={handleSubmit}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-headline">
+                <Lightbulb />
+                Your Startup Idea
+              </CardTitle>
+              <CardDescription>
+                Describe your idea in a few sentences. The more detail, the better
+                the design.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                placeholder="e.g., A mobile app that connects local gardeners with people who want fresh, organic produce."
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                rows={4}
+                disabled={loading}
+                className="resize-none"
+              />
+            </CardContent>
+            <div className="flex justify-end p-6 pt-0">
+              <Button type="submit" disabled={loading} size="lg">
+                {loading && !result ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  'Generate Website'
+                )}
+              </Button>
+            </div>
+          </form>
+        </Card>
 
-      <Card className="w-full max-w-3xl shadow-lg">
-        <form onSubmit={handleSubmit}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline">
-              <Lightbulb />
-              Your Startup Idea
-            </CardTitle>
-            <CardDescription>
-              Describe your idea in a few sentences. The more detail, the better
-              the pitch.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="e.g., A mobile app that connects local gardeners with people who want fresh, organic produce."
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              rows={4}
-              disabled={loading}
-              className="resize-none"
-            />
-          </CardContent>
-          <div className="flex justify-end p-6 pt-0">
-            <Button type="submit" disabled={loading} size="lg">
-              {loading && !result ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                'Generate Pitch'
-              )}
-            </Button>
-          </div>
-        </form>
-      </Card>
+        {loading && <LoadingState />}
 
-      {loading && <LoadingState />}
-
-      {editableResult && (
-        <ResultsDisplay
-          result={editableResult}
-          onResultChange={handleResultChange}
-          onDownload={handleDownload}
-          onSave={handleSave}
-          isSaving={saving}
-          isLoggedIn={!!user}
-          onRegenerate={handleRegenerate}
-          isRegenerating={loading}
-        />
-      )}
-
-      <footer className="mt-auto text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} PitchAI. All rights reserved.</p>
-      </footer>
-    </main>
+        {result && (
+          <ResultsDisplay
+            result={result}
+            onDownload={handleDownload}
+            onSave={handleSave}
+            isSaving={saving}
+            isLoggedIn={!!user}
+            onRegenerate={handleRegenerate}
+            isRegenerating={loading}
+          />
+        )}
+      </main>
+      <footer className="mt-auto text-center text-sm text-muted-foreground p-4">
+          <p>&copy; {new Date().getFullYear()} PitchAI. All rights reserved.</p>
+        </footer>
+    </div>
   );
 }
 
 const LoadingState = () => (
-  <div className="w-full max-w-3xl space-y-8">
-    <div className="flex justify-center">
-      <Skeleton className="h-10 w-40" />
-    </div>
-    <div className="grid gap-8 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-7 w-32" />
-          <Skeleton className="h-5 w-48" />
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-          </div>
-        </CardContent>
-      </Card>
-      <div className="space-y-8">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-7 w-40" />
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-7 w-36" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Skeleton className="mb-2 h-5 w-28" />
-              <div className="flex gap-2">
-                <Skeleton className="h-8 w-8 rounded" />
-                <Skeleton className="h-8 w-8 rounded" />
-                <Skeleton className="h-8 w-8 rounded" />
-              </div>
-            </div>
-            <div>
-              <Skeleton className="mb-2 h-5 w-32" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-5/6" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+  <div className="w-full max-w-6xl space-y-4 animate-pulse">
+    <Skeleton className="h-16 w-full" />
+    <Skeleton className="h-96 w-full" />
+    <Skeleton className="h-24 w-full" />
   </div>
 );
 
+
 const ResultsDisplay: FC<{
-  result: GenerationOutput;
-  onResultChange: (field: keyof GenerationOutput, value: any) => void;
+  result: GenerateWebsiteFromIdeaOutput;
   onDownload: () => void;
   onSave: () => void;
   isSaving: boolean;
   isLoggedIn: boolean;
   onRegenerate: () => void;
   isRegenerating: boolean;
-}> = ({ result, onResultChange, onDownload, onSave, isSaving, isLoggedIn, onRegenerate, isRegenerating }) => (
-  <div className="w-full max-w-5xl animate-in fade-in-50 duration-500 space-y-8">
-    <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-      <h2 className="text-2xl font-headline font-bold text-center sm:text-3xl">
-        Your Pitch is Ready!
-      </h2>
-      <div className="flex items-center gap-2">
-        <Button onClick={onRegenerate} disabled={isRegenerating} variant="outline">
-          {isRegenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Regenerating...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2" /> Regenerate
-            </>
-          )}
-        </Button>
-        {isLoggedIn && (
-          <Button onClick={onSave} disabled={isSaving}>
-            {isSaving ? (
+}> = ({ result, onDownload, onSave, isSaving, isLoggedIn, onRegenerate, isRegenerating }) => {
+  const { website, design } = result;
+
+  const style = {
+    '--background': design.colorPalette.background,
+    '--foreground': design.colorPalette.foreground,
+    '--primary': design.colorPalette.primary,
+    '--primary-foreground': design.colorPalette.primaryForeground,
+    '--muted-foreground': design.colorPalette.mutedForeground,
+    '--card': design.colorPalette.card,
+    '--card-foreground': design.colorPalette.cardForeground,
+    '--accent': design.colorPalette.accent,
+    '--accent-foreground': design.colorPalette.accentForeground,
+    '--border': design.colorPalette.border,
+  } as React.CSSProperties;
+
+  return (
+    <div className="w-full max-w-7xl animate-in fade-in-50 duration-500 space-y-8">
+       <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+        <h2 className="text-2xl font-headline font-bold text-center sm:text-3xl">
+          Your Website Design is Ready!
+        </h2>
+        <div className="flex items-center gap-2">
+          <Button onClick={onRegenerate} disabled={isRegenerating} variant="outline">
+            {isRegenerating ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Regenerating...
               </>
             ) : (
               <>
-                <Save className="mr-2" /> Save Pitch
+                <RefreshCw className="mr-2" /> Regenerate
               </>
             )}
           </Button>
-        )}
-        <Button onClick={onDownload} variant="outline">
-          <Download className="mr-2" />
-          Download
-        </Button>
+          {isLoggedIn && (
+            <Button onClick={onSave} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2" /> Save Design
+                </>
+              )}
+            </Button>
+          )}
+          <Button onClick={onDownload} variant="outline">
+            <Download className="mr-2" />
+            Download
+          </Button>
+        </div>
+      </div>
+      <div className="border rounded-xl overflow-hidden shadow-2xl" style={style}>
+        <div className="bg-[hsl(var(--background))] text-[hsl(var(--foreground))] font-body">
+            <Navbar
+              startupName={website.startupName}
+              logoConcept={design.logoConcept}
+              links={website.navbar.links}
+              cta={website.navbar.cta}
+            />
+            <Hero
+              headline={website.hero.headline}
+              description={website.hero.description}
+              cta={website.hero.cta}
+              imageHint={website.hero.imageHint}
+            />
+            <Footer
+              startupName={website.startupName}
+              copyright={website.footer.copyright}
+              links={website.footer.links}
+            />
+        </div>
       </div>
     </div>
+  );
+};
 
-    <div className="grid gap-8 lg:grid-cols-5">
-      <div className="lg:col-span-3">
-        <Card className="h-full shadow-md">
-          <CardHeader>
-            <div className="flex items-center gap-2 font-headline text-xl">
-              <Rocket className="text-primary" />
-              <Input
-                  value={result.startupName}
-                  onChange={(e) => onResultChange('startupName', e.target.value)}
-                  className="text-xl font-bold font-headline bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
-                />
+
+const Navbar: FC<{
+  startupName: string;
+  logoConcept: string;
+  links: { text: string; href: string }[];
+  cta: { text: string; href: string };
+}> = ({ startupName, logoConcept, links, cta }) => {
+  return (
+    <nav className="sticky top-0 bg-[hsl(var(--background))] bg-opacity-80 backdrop-blur-md z-10 border-b border-[hsl(var(--border))]">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center space-x-4">
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <Brush className="h-8 w-8 text-[hsl(var(--primary))]" />
+              <span className="font-bold text-lg font-headline">{startupName}</span>
             </div>
-             <div className="flex items-center gap-2 italic">
-              <Megaphone className="h-4 w-4" />
-              <Input
-                  value={result.tagline}
-                  onChange={(e) => onResultChange('tagline', e.target.value)}
-                  className="italic bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
-                />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div>
-              <h3 className="font-semibold mb-2">Elevator Pitch</h3>
-               <Textarea
-                value={result.elevatorPitch}
-                onChange={(e) => onResultChange('elevatorPitch', e.target.value)}
-                className="text-muted-foreground bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto min-h-[60px]"
-                rows={3}
-              />
-            </div>
-            <div>
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Target Audience
-              </h3>
-               <Textarea
-                value={result.targetAudience}
-                onChange={(e) => onResultChange('targetAudience', e.target.value)}
-                className="text-muted-foreground bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto min-h-[40px]"
-                rows={2}
-              />
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="hidden md:flex items-center space-x-6">
+            {links.map((link) => (
+              <a key={link.href} href={link.href} className="text-sm font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
+                {link.text}
+              </a>
+            ))}
+          </div>
+          <div className="flex items-center">
+            <Button asChild style={{ 
+              backgroundColor: 'hsl(var(--primary))', 
+              color: 'hsl(var(--primary-foreground))' 
+            }}>
+              <a href={cta.href}>{cta.text}</a>
+            </Button>
+          </div>
+        </div>
       </div>
-      <div className="space-y-8 lg:col-span-2">
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline text-lg">
-              <Newspaper />
-              Website Hero Copy
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-                value={result.heroSectionCopy}
-                onChange={(e) => onResultChange('heroSectionCopy', e.target.value)}
-                className="text-muted-foreground bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto min-h-[80px]"
-                rows={4}
+    </nav>
+  );
+};
+
+const Hero: FC<{
+  headline: string;
+  description: string;
+  cta: { text: string; href: string };
+  imageHint: string;
+}> = ({ headline, description, cta, imageHint }) => {
+  return (
+    <section className="py-20 sm:py-32">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter font-headline">
+              {headline}
+            </h1>
+            <p className="max-w-xl text-lg text-[hsl(var(--muted-foreground))]">
+              {description}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button asChild size="lg" style={{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}>
+                <a href={cta.href}>{cta.text}</a>
+              </Button>
+               <Button asChild size="lg" variant="outline" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}>
+                <a href="#">Learn More <ArrowRight className="ml-2"/></a>
+              </Button>
+            </div>
+          </div>
+          <div className="relative h-64 lg:h-auto lg:aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
+             <Image
+                src={`https://picsum.photos/seed/${uuidv4()}/800/600`}
+                alt={imageHint}
+                fill
+                className="object-cover"
+                data-ai-hint={imageHint}
               />
-          </CardContent>
-        </Card>
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 font-headline text-lg">
-              <Palette />
-              Design Ideas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">Color Palettes</h4>
-              <div className="flex flex-wrap gap-2">
-                {result.colorPaletteSuggestions.map((palette, i) => (
-                  <div
-                    key={i}
-                    className="flex overflow-hidden rounded-md border"
-                  >
-                    {palette.map((color) => (
-                      <div
-                        key={color}
-                        className="h-8 w-8"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2 flex items-center gap-2">
-                <Brush className="h-4 w-4" />
-                Logo Concepts
-              </h4>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                {result.logoConceptSuggestions.map((concept, i) => (
-                  <li key={i}>{concept}</li>
-                ))}
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-);
+    </section>
+  );
+};
+
+const Footer: FC<{
+  startupName: string;
+  copyright: string;
+  links: { text: string; href: string }[];
+}> = ({ startupName, copyright, links }) => {
+  return (
+    <footer className="bg-[hsl(var(--card))] border-t border-[hsl(var(--border))]">
+      <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <Brush className="h-6 w-6 text-[hsl(var(--muted-foreground))]"/>
+            <span className="font-semibold text-md">{startupName}</span>
+          </div>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            {copyright}
+          </p>
+          <div className="flex space-x-6">
+            {links.map((link) => (
+              <a key={link.href} href={link.href} className="text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
+                {link.text}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+};

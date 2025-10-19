@@ -29,9 +29,13 @@ export default function PitchesPage() {
 
   const sortedPitches = useMemo(() => {
     if (!pitches) return [];
-    return [...pitches].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    // Ensure createdAt is a valid date before sorting
+    return [...pitches].filter(p => p.createdAt).sort(
+      (a, b) => {
+        const dateA = (a.createdAt as any)?.toDate ? (a.createdAt as any).toDate() : new Date(0);
+        const dateB = (b.createdAt as any)?.toDate ? (b.createdAt as any).toDate() : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      }
     );
   }, [pitches]);
 
@@ -57,25 +61,32 @@ export default function PitchesPage() {
     );
   }
 
+  const getCreationDate = (pitch: PitchIdea) => {
+    if (!pitch.createdAt) return 'Date not available';
+    const date = (pitch.createdAt as any)?.toDate ? (pitch.createdAt as any).toDate() : new Date(pitch.createdAt);
+    if (isNaN(date.getTime())) return 'Invalid date';
+    return date.toLocaleDateString();
+  }
+
   return (
     <div className="container mx-auto p-4 py-10 md:p-16">
       <Header />
       <main className="mt-12">
         <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold font-headline">My Saved Pitches</h1>
+            <h1 className="text-3xl font-bold font-headline">My Saved Designs</h1>
              <Button asChild variant="outline">
                 <Link href="/">
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    New Pitch
+                    New Design
                 </Link>
             </Button>
         </div>
 
         {sortedPitches.length === 0 ? (
           <div className="text-center py-20 border-2 border-dashed rounded-lg">
-            <h3 className="text-xl font-semibold">No pitches saved yet.</h3>
+            <h3 className="text-xl font-semibold">No designs saved yet.</h3>
             <p className="text-muted-foreground mt-2">
-              Start by generating a new pitch to see it here.
+              Start by generating a new website design to see it here.
             </p>
           </div>
         ) : (
@@ -83,14 +94,14 @@ export default function PitchesPage() {
             {sortedPitches.map((pitch) => (
               <Card key={pitch.id} className="flex flex-col">
                 <CardHeader>
-                  <CardTitle>{pitch.generatedPitch?.startupName || 'Untitled Pitch'}</CardTitle>
+                  <CardTitle>{pitch.generatedWebsite?.startupName || 'Untitled Design'}</CardTitle>
                    <CardDescription className="line-clamp-2">
                     {pitch.ideaDescription}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
                    <p className="text-sm text-muted-foreground">
-                    Created on {new Date(pitch.createdAt).toLocaleDateString()}
+                    Created on {getCreationDate(pitch)}
                   </p>
                 </CardContent>
                 <div className="p-6 pt-0">
