@@ -294,8 +294,8 @@ const ResultsDisplay: FC<{
   } as React.CSSProperties;
 
   return (
-    <div className="w-full max-w-7xl animate-in fade-in-50 duration-500 space-y-8">
-       <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+    <div className="w-full max-w-7xl space-y-8">
+       <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between animate-in fade-in slide-in-from-bottom-4 duration-500">
         <h2 className="text-2xl font-headline font-bold text-center sm:text-3xl">
           Your Website Design is Ready!
         </h2>
@@ -363,7 +363,7 @@ const Navbar: FC<{
   cta: { text: string; href: string };
 }> = ({ startupName, logoConcept, links, cta }) => {
   return (
-    <nav className="sticky top-0 bg-[hsl(var(--background))] bg-opacity-80 backdrop-blur-md z-10 border-b border-[hsl(var(--border))]">
+    <nav className="sticky top-0 bg-[hsl(var(--background))] bg-opacity-80 backdrop-blur-md z-10 border-b border-[hsl(var(--border))] animate-in fade-in slide-in-from-top-4 duration-500">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-4">
@@ -373,17 +373,24 @@ const Navbar: FC<{
             </div>
           </div>
           <div className="hidden md:flex items-center space-x-6">
-            {links.map((link) => (
-              <a key={link.href} href={link.href} className="text-sm font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors">
+            {links.map((link, index) => (
+              <a 
+                key={link.href} 
+                href={link.href} 
+                className="text-sm font-medium text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors animate-in fade-in slide-in-from-top-2 duration-500"
+                style={{ animationDelay: `${150 + index * 100}ms` }}
+              >
                 {link.text}
               </a>
             ))}
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center animate-in fade-in slide-in-from-top-2 duration-500" style={{ animationDelay: '550ms' }}>
             <Button asChild style={{ 
               backgroundColor: 'hsl(var(--primary))', 
               color: 'hsl(var(--primary-foreground))' 
-            }}>
+            }}
+            className="transform transition-transform hover:scale-105"
+            >
               <a href={cta.href}>{cta.text}</a>
             </Button>
           </div>
@@ -404,22 +411,22 @@ const Hero: FC<{
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter font-headline">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter font-headline animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200">
               {headline}
             </h1>
-            <p className="max-w-xl text-lg text-[hsl(var(--muted-foreground))]">
+            <p className="max-w-xl text-lg text-[hsl(var(--muted-foreground))] animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300">
               {description}
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button asChild size="lg" style={{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}>
+            <div className="flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-400">
+              <Button asChild size="lg" style={{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }} className="transform transition-transform hover:scale-105">
                 <a href={cta.href}>{cta.text}</a>
               </Button>
-               <Button asChild size="lg" variant="outline" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }}>
+               <Button asChild size="lg" variant="outline" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))' }} className="transform transition-transform hover:scale-105 hover:bg-[hsl(var(--accent))]">
                 <a href="#">Learn More <ArrowRight className="ml-2"/></a>
               </Button>
             </div>
           </div>
-          <div className="relative h-64 lg:h-auto lg:aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl">
+          <div className="relative h-64 lg:h-auto lg:aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-500 delay-500">
              <Image
                 src={`https://picsum.photos/seed/${uuidv4()}/800/600`}
                 alt={imageHint}
